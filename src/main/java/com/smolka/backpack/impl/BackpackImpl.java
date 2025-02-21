@@ -80,6 +80,7 @@ public class BackpackImpl implements Backpack {
     private void addSelectionResultForIndex(int index, List<Item> items, List<ItemSelectionResult> otherResults) {
         ItemSelectionResult result = new ItemSelectionResult(items.get(index));
         for (int i = index + 1; i < items.size(); i++) {
+            System.out.println("*");
             Item nextItem = items.get(i);
             int newWeight = result.getWeightOfLastBranch() + nextItem.getWeight();
             if (newWeight > capacity) {
