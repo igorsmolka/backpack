@@ -113,4 +113,21 @@ public class BackpackTest {
         assert backpack.getCostOfContent() == check;
         assert backpack.getWeightOfContent() <= backpack.getCapacity();
     }
+
+    @Test
+    public void test7() {
+        Set<Item> items = Set.of(
+                new Item("Бокс 1", 4, 2),
+                new Item("Бокс 2", 4, 2),
+                new Item("Бокс 3", 4, 2)
+        );
+
+        int check = 0;
+
+        Backpack backpack = new BackpackImpl(3);
+        backpack.fillBackpack(items);
+
+        assert backpack.getCostOfContent() == check;
+        assert backpack.getWeightOfContent() <= backpack.getCapacity();
+    }
 }
