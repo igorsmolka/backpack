@@ -5,9 +5,26 @@ import com.smolka.backpack.Item;
 import com.smolka.backpack.impl.BackpackImpl;
 import org.junit.Test;
 
+import java.util.HashSet;
 import java.util.Set;
 
 public class BackpackTest {
+
+    @Test
+    public void test11() {
+        Set<Item> items = new HashSet<>();
+        for (int i = 1; i < 1000; i++) {
+            items.add(new Item(String.valueOf(i), i, i));
+        }
+
+        int check = 1999;
+
+        Backpack backpack = new BackpackImpl(1999);
+
+        backpack.fillBackpack(items);
+        assert backpack.getCostOfContent() == check;
+        assert backpack.getWeightOfContent() <= backpack.getCapacity();
+    }
 
     @Test
     public void test10() {

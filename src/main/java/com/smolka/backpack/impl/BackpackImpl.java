@@ -104,7 +104,7 @@ public class BackpackImpl implements Backpack {
             if (newWeight > capacity) {
                 Branch newBranch = result.createCapableBranchFromLast(nextItem, capacity);
                 if (newBranch.isEmpty()) {
-                    otherResults.add(postProcessResultAndReturn(result, otherResults));
+                    otherResults.add(result);
                     return;
                 }
 
@@ -114,22 +114,7 @@ public class BackpackImpl implements Backpack {
             }
         }
 
-        otherResults.add(postProcessResultAndReturn(result, otherResults));
-    }
-
-    private ItemSelectionResult postProcessResultAndReturn(ItemSelectionResult result, List<ItemSelectionResult> otherResults) {
-        Set<UUID> branchesToRemove = new HashSet<>();
-        for (Branch branch : result.getBranches()) {
-            for (ItemSelectionResult otherResult : otherResults) {
-                if (otherResult.containsAsSubCombination(branch.getItemsCombination())) {
-                    branchesToRemove.add(branch.getUuid());
-                    break;
-                }
-            }
-        }
-
-        result.removeAllBranchesByUuids(branchesToRemove);
-        return result;
+        otherResults.add(result);
     }
 
     private static class WeightSequenceInfo {
@@ -146,10 +131,6 @@ public class BackpackImpl implements Backpack {
         public void addItem(Item item) {
             assert item.getWeight() == weight;
             elements.add(item);
-        }
-
-        public int getWeight() {
-            return weight;
         }
 
         public List<Item> getMostProfitablePossibleSequence(int capacity) {
@@ -204,24 +185,6 @@ public class BackpackImpl implements Backpack {
 
         public Branch getLastBranch() {
             return branches.getLast();
-        }
-
-        public List<Branch> getBranches() {
-            return branches;
-        }
-
-        public boolean containsAsSubCombination(Set<Item> items) {
-            for (Branch branch : branches) {
-                if (branch.combinationContainsAll(items)) {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        public void removeAllBranchesByUuids(Set<UUID> toRemove) {
-            branches.removeIf(b -> toRemove.contains(b.getUuid()));
         }
 
         public ItemsCostInfo getBranchWithMaxCost() {
@@ -299,18 +262,14 @@ public class BackpackImpl implements Backpack {
 
         private final List<Item> itemsInOrder;
 
-        private final Set<Item> itemsCombination;
-
         public Branch() {
             this.uuid = UUID.randomUUID();
             this.itemsInOrder = new ArrayList<>();
-            this.itemsCombination = new HashSet<>();
         }
 
         public Branch(List<Item> items) {
             this.uuid = UUID.randomUUID();
             this.itemsInOrder = items;
-            this.itemsCombination = new HashSet<>(items);
         }
 
         public UUID getUuid() {
@@ -321,17 +280,8 @@ public class BackpackImpl implements Backpack {
             return itemsInOrder;
         }
 
-        public Set<Item> getItemsCombination() {
-            return itemsCombination;
-        }
-
-        public boolean combinationContainsAll(Set<Item> otherItems) {
-            return itemsCombination.containsAll(otherItems);
-        }
-
         public void addInBranch(Item item) {
             this.itemsInOrder.add(item);
-            this.itemsCombination.add(item);
         }
 
         public boolean isEmpty() {
