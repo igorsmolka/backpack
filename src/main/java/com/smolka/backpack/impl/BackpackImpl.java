@@ -100,7 +100,7 @@ public class BackpackImpl implements Backpack {
         ItemSelectionResult result = new ItemSelectionResult(items.get(index));
         for (int i = index + 1; i < items.size(); i++) {
             Item nextItem = items.get(i);
-            int newWeight = result.getWeightOfLastBranch() + nextItem.getWeight();
+            int newWeight = result.getLastBranch().getWeight() + nextItem.getWeight();
             if (newWeight > capacity) {
                 Branch newBranch = result.createCapableBranchFromLast(nextItem, capacity);
                 if (newBranch.isEmpty()) {
@@ -192,11 +192,10 @@ public class BackpackImpl implements Backpack {
             List<Item> branchElementsWithMaxCost = new ArrayList<>();
 
             for (Branch branch : branches) {
-                List<Item> branchElements = branch.getItemsInOrder();
-                int costOfBranch = getCostOfBranchElements(branchElements);
+                int costOfBranch = branch.getCost();
                 if (maxCost < costOfBranch) {
                     maxCost = costOfBranch;
-                    branchElementsWithMaxCost = branchElements;
+                    branchElementsWithMaxCost = branch.getItemsInOrder();
                 }
             }
 
@@ -205,26 +204,25 @@ public class BackpackImpl implements Backpack {
 
         public Branch createCapableBranchFromLast(Item newItem, int capacity) {
             int newWeight = newItem.getWeight();
-            List<Item> lastBranchElementsCopy = new ArrayList<>(getLastBranch().getItemsInOrder());
-            if (getWeightOfLastBranch() + newWeight <= capacity) {
-                lastBranchElementsCopy.add(newItem);
-                return new Branch(lastBranchElementsCopy);
+            int weightOfLastElement = getLastBranch().getWeight();
+
+            Branch lastBranchCopy = getLastBranch().getCopy();
+            if (weightOfLastElement + newWeight <= capacity) {
+                lastBranchCopy.addInBranch(newItem);
+                return lastBranchCopy;
             }
 
-            while (!lastBranchElementsCopy.isEmpty() && getWeightOfBranchElements(lastBranchElementsCopy) + newWeight > capacity) {
-                lastBranchElementsCopy.removeLast();
-                if (lastBranchElementsCopy.isEmpty()) {
-                    return new Branch(lastBranchElementsCopy);
+            while (!lastBranchCopy.isEmpty() && weightOfLastElement + newWeight > capacity) {
+                lastBranchCopy.removeLast();
+                if (lastBranchCopy.isEmpty()) {
+                    return lastBranchCopy;
                 }
+                weightOfLastElement = lastBranchCopy.getWeight();
             }
 
-            lastBranchElementsCopy.add(newItem);
+            lastBranchCopy.addInBranch(newItem);
 
-            return new Branch(lastBranchElementsCopy);
-        }
-
-        public int getWeightOfLastBranch() {
-            return getWeightOfBranchElements(getLastBranch().getItemsInOrder());
+            return lastBranchCopy;
         }
 
         public void addInLastBranch(Item item) {
@@ -233,14 +231,6 @@ public class BackpackImpl implements Backpack {
 
         public void addNewBranch(Branch branch) {
             branches.add(branch);
-        }
-
-        private int getWeightOfBranchElements(List<Item> branch) {
-            return branch.stream().map(Item::getWeight).reduce(Integer::sum).orElse(0);
-        }
-
-        private int getCostOfBranchElements(List<Item> branch) {
-            return branch.stream().map(Item::getCost).reduce(Integer::sum).orElse(0);
         }
 
         @Override
@@ -262,26 +252,53 @@ public class BackpackImpl implements Backpack {
 
         private final List<Item> itemsInOrder;
 
+        private Integer cost;
+
+        private Integer weight;
+
         public Branch() {
             this.uuid = UUID.randomUUID();
             this.itemsInOrder = new ArrayList<>();
+            this.cost = 0;
+            this.weight = 0;
         }
 
         public Branch(List<Item> items) {
             this.uuid = UUID.randomUUID();
             this.itemsInOrder = items;
+            this.cost = items.stream().map(Item::getCost).reduce(Integer::sum).orElse(0);
+            this.weight = items.stream().map(Item::getWeight).reduce(Integer::sum).orElse(0);
         }
 
-        public UUID getUuid() {
-            return uuid;
+        public Branch getCopy() {
+            return new Branch(new ArrayList<>(itemsInOrder));
+        }
+
+        public Integer getWeight() {
+            return weight;
+        }
+
+        public Integer getCost() {
+            return cost;
         }
 
         public List<Item> getItemsInOrder() {
             return itemsInOrder;
         }
 
+        public void removeLast() {
+            int weightOfLastElement = itemsInOrder.getLast().getWeight();
+            int costOfLastElement = itemsInOrder.getLast().getCost();
+
+            this.itemsInOrder.removeLast();
+            this.weight -= weightOfLastElement;
+            this.cost -= costOfLastElement;
+        }
+
         public void addInBranch(Item item) {
             this.itemsInOrder.add(item);
+            this.cost += item.getCost();
+            this.weight += item.getWeight();
         }
 
         public boolean isEmpty() {
