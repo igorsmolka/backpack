@@ -10,10 +10,30 @@ import java.util.Set;
 public class BackpackTest {
 
     @Test
+    public void test9() {
+        Set<Item> items = Set.of(
+                new Item("1", 1, 1),
+                new Item("2", 1, 2),
+                new Item("3", 1, 3),
+                new Item("4", 1, 4),
+                new Item("5", 2, 5),
+                new Item("6", 2, 6),
+                new Item("7", 3, 7),
+                new Item("8", 3, 8)
+        );
+
+        int check = 15;
+
+        Backpack backpack = new BackpackImpl(5);
+
+        backpack.fillBackpack(items);
+
+        assert backpack.getCostOfContent() == check;
+        assert backpack.getWeightOfContent() <= backpack.getCapacity();
+    }
+
+    @Test
     public void test8() {
-        //todo incorrect for now
-        //todo запоминаем, что есть такие группы из повторяющихся весов... можем запоминать такие подгруппы, как отсортированный по цене массив
-        //todo дальше в addSelectionResultForIndex когда натыкаемся на такие группы - как-то это обрабатывать и сразу через них перепрыгивать... должно быть не сложно, надо просто обдумать
         Set<Item> items = Set.of(
                 new Item("1", 1, 1),
                 new Item("2", 1, 2),
@@ -32,6 +52,7 @@ public class BackpackTest {
                 new Item("15", 1, 15),
                 new Item("16", 1, 16),
                 new Item("17", 1, 17),
+                new Item("52", 2, 1000),
                 new Item("19", 1, 19),
                 new Item("20", 1, 20),
                 new Item("22", 1, 22),
@@ -39,6 +60,7 @@ public class BackpackTest {
                 new Item("24", 1, 24),
                 new Item("25", 1, 25),
                 new Item("26", 1, 26),
+                new Item("51", 2, 1000),
                 new Item("27", 1, 27),
                 new Item("28", 1, 28),
                 new Item("29", 1, 29),
@@ -67,14 +89,17 @@ public class BackpackTest {
                 new Item("50", 1, 50)
         );
 
+        int check = 2285;
+
         Backpack backpack = new BackpackImpl(10);
         backpack.fillBackpack(items);
 
-        backpack = backpack;
+        assert backpack.getCostOfContent() == check;
+        assert backpack.getWeightOfContent() <= backpack.getCapacity();
     }
 
     @Test
-    public void test() {
+    public void test1() {
         Set<Item> items = Set.of(
                 new Item("Часы", 1, 4),
                 new Item("Пакет сока", 2, 3),

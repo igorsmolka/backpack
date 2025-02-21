@@ -5,8 +5,10 @@ import com.smolka.backpack.Item;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -29,14 +31,12 @@ public class BackpackImpl implements Backpack {
     public void fillBackpack(Set<Item> items) {
         itemsInBackpack.clear();
 
-        Set<Item> itemsWithoutOverWeightedElements = items.stream().filter(item -> item.getWeight() <= capacity).collect(Collectors.toSet());
 
-        List<Item> sortedItems = new ArrayList<>(itemsWithoutOverWeightedElements.stream().toList());
-        sortedItems.sort(Comparator.comparingInt(Item::getWeight));
+        List<Item> preProcessedItems = preProcessItems(items);
 
         List<ItemSelectionResult> selectionResults = new ArrayList<>();
-        for (int i = 0; i < sortedItems.size(); i++) {
-            addSelectionResultForIndex(i, sortedItems, selectionResults);
+        for (int i = 0; i < preProcessedItems.size(); i++) {
+            addSelectionResultForIndex(i, preProcessedItems, selectionResults);
         }
 
         int maxCost = -1;
@@ -77,10 +77,28 @@ public class BackpackImpl implements Backpack {
         return capacity;
     }
 
+    private List<Item> preProcessItems(Set<Item> items) {
+        Set<Item> itemsWithoutOverWeightedElements = items.stream().filter(item -> item.getWeight() <= capacity).collect(Collectors.toSet());
+        Map<Integer, WeightSequenceInfo> weightSequenceInfoMap = new HashMap<>();
+
+        for (Item item : itemsWithoutOverWeightedElements) {
+            int weight = item.getWeight();
+            weightSequenceInfoMap.putIfAbsent(weight, new WeightSequenceInfo(weight));
+            weightSequenceInfoMap.get(weight).addItem(item);
+        }
+
+        List<Item> preProcessedItemsList = new ArrayList<>();
+        for (WeightSequenceInfo weightSequenceInfo : weightSequenceInfoMap.values()) {
+            preProcessedItemsList.addAll(weightSequenceInfo.getMostProfitablePossibleSequence(capacity));
+        }
+
+        preProcessedItemsList.sort(Comparator.comparingInt(Item::getWeight));
+        return preProcessedItemsList;
+    }
+
     private void addSelectionResultForIndex(int index, List<Item> items, List<ItemSelectionResult> otherResults) {
         ItemSelectionResult result = new ItemSelectionResult(items.get(index));
         for (int i = index + 1; i < items.size(); i++) {
-            System.out.println("*");
             Item nextItem = items.get(i);
             int newWeight = result.getWeightOfLastBranch() + nextItem.getWeight();
             if (newWeight > capacity) {
@@ -112,6 +130,44 @@ public class BackpackImpl implements Backpack {
 
         result.removeAllBranchesByUuids(branchesToRemove);
         return result;
+    }
+
+    private static class WeightSequenceInfo {
+
+        private final int weight;
+
+        private final List<Item> elements;
+
+        public WeightSequenceInfo(int weight) {
+            this.weight = weight;
+            this.elements = new ArrayList<>();
+        }
+
+        public void addItem(Item item) {
+            assert item.getWeight() == weight;
+            elements.add(item);
+        }
+
+        public int getWeight() {
+            return weight;
+        }
+
+        public List<Item> getMostProfitablePossibleSequence(int capacity) {
+            if (elements.size() == 1) {
+                return elements;
+            }
+
+            List<Item> itemsSortedByCost = new ArrayList<>(elements);
+            itemsSortedByCost.sort(Comparator.comparingInt(Item::getCost));
+
+            int limit = capacity / weight;
+
+            if (limit > itemsSortedByCost.size()) {
+                return itemsSortedByCost;
+            }
+
+            return itemsSortedByCost.subList(itemsSortedByCost.size() - limit, itemsSortedByCost.size());
+        }
     }
 
     private record ItemsCostInfo(
