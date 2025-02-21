@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class BackpackImpl implements Backpack {
@@ -248,8 +247,6 @@ public class BackpackImpl implements Backpack {
 
     private static class Branch {
 
-        private final UUID uuid;
-
         private final List<Item> itemsInOrder;
 
         private Integer cost;
@@ -257,14 +254,12 @@ public class BackpackImpl implements Backpack {
         private Integer weight;
 
         public Branch() {
-            this.uuid = UUID.randomUUID();
             this.itemsInOrder = new ArrayList<>();
             this.cost = 0;
             this.weight = 0;
         }
 
         public Branch(List<Item> items) {
-            this.uuid = UUID.randomUUID();
             this.itemsInOrder = items;
             this.cost = items.stream().map(Item::getCost).reduce(Integer::sum).orElse(0);
             this.weight = items.stream().map(Item::getWeight).reduce(Integer::sum).orElse(0);
@@ -309,12 +304,12 @@ public class BackpackImpl implements Backpack {
         public boolean equals(Object o) {
             if (o == null || getClass() != o.getClass()) return false;
             Branch branch = (Branch) o;
-            return Objects.equals(uuid, branch.uuid);
+            return Objects.equals(itemsInOrder, branch.itemsInOrder) && Objects.equals(cost, branch.cost) && Objects.equals(weight, branch.weight);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hashCode(uuid);
+            return Objects.hash(itemsInOrder, cost, weight);
         }
     }
 }
