@@ -104,6 +104,7 @@ public class BackpackImpl implements Backpack {
             for (ItemSelectionResult otherResult : otherResults) {
                 if (otherResult.containsAsSubCombination(branch.getItemsCombination())) {
                     branchesToRemove.add(branch.getUuid());
+                    break;
                 }
             }
         }
