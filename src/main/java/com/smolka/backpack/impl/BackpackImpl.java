@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class BackpackImpl implements Backpack {
@@ -35,12 +36,16 @@ public class BackpackImpl implements Backpack {
 
         List<ItemSelectionResult> selectionResults = new ArrayList<>();
         for (int i = 0; i < sortedItems.size(); i++) {
-            selectionResults.add(getSelectionResultFromIndex(i, sortedItems));
+            addSelectionResultForIndex(i, sortedItems, selectionResults);
         }
 
         int maxCost = -1;
         List<Item> branchWithMaxCost = new ArrayList<>();
         for (ItemSelectionResult selectionResult : selectionResults) {
+            if (selectionResult.isEmpty()) {
+                continue;
+            }
+
             ItemsCostInfo itemsCostInfo = selectionResult.getBranchWithMaxCost();
             int currentCost = itemsCostInfo.cost();
             if (currentCost > maxCost) {
@@ -72,15 +77,16 @@ public class BackpackImpl implements Backpack {
         return capacity;
     }
 
-    private ItemSelectionResult getSelectionResultFromIndex(int index, List<Item> items) {
+    private void addSelectionResultForIndex(int index, List<Item> items, List<ItemSelectionResult> otherResults) {
         ItemSelectionResult result = new ItemSelectionResult(items.get(index));
         for (int i = index + 1; i < items.size(); i++) {
             Item nextItem = items.get(i);
             int newWeight = result.getWeightOfLastBranch() + nextItem.getWeight();
             if (newWeight > capacity) {
-                List<Item> newBranch = result.createCapableBranchFromLast(nextItem, capacity);
+                Branch newBranch = result.createCapableBranchFromLast(nextItem, capacity);
                 if (newBranch.isEmpty()) {
-                    return result;
+                    otherResults.add(postProcessResultAndReturn(result, otherResults));
+                    return;
                 }
 
                 result.addNewBranch(newBranch);
@@ -89,6 +95,20 @@ public class BackpackImpl implements Backpack {
             }
         }
 
+        otherResults.add(postProcessResultAndReturn(result, otherResults));
+    }
+
+    private ItemSelectionResult postProcessResultAndReturn(ItemSelectionResult result, List<ItemSelectionResult> otherResults) {
+        Set<UUID> branchesToRemove = new HashSet<>();
+        for (Branch branch : result.getBranches()) {
+            for (ItemSelectionResult otherResult : otherResults) {
+                if (otherResult.containsAsSubCombination(branch.getItemsCombination())) {
+                    branchesToRemove.add(branch.getUuid());
+                }
+            }
+        }
+
+        result.removeAllBranchesByUuids(branchesToRemove);
         return result;
     }
 
@@ -112,69 +132,93 @@ public class BackpackImpl implements Backpack {
 
     private static class ItemSelectionResult {
 
-        private final List<List<Item>> branches;
+        private final List<Branch> branches;
 
         public ItemSelectionResult(Item rootItem) {
             this.branches = new ArrayList<>();
-            this.branches.add(new ArrayList<>(List.of(rootItem)));
+            this.branches.add(new Branch());
+            this.getLastBranch().addInBranch(rootItem);
         }
 
-        public List<Item> getLastBranch() {
+        public boolean isEmpty() {
+            return branches.isEmpty();
+        }
+
+        public Branch getLastBranch() {
             return branches.getLast();
+        }
+
+        public List<Branch> getBranches() {
+            return branches;
+        }
+
+        public boolean containsAsSubCombination(Set<Item> items) {
+            for (Branch branch : branches) {
+                if (branch.combinationContainsAll(items)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public void removeAllBranchesByUuids(Set<UUID> toRemove) {
+            branches.removeIf(b -> toRemove.contains(b.getUuid()));
         }
 
         public ItemsCostInfo getBranchWithMaxCost() {
             int maxCost = -1;
-            List<Item> branchWithMaxCost = new ArrayList<>();
+            List<Item> branchElementsWithMaxCost = new ArrayList<>();
 
-            for (List<Item> branch : branches) {
-                int costOfBranch = getCostOfBranch(branch);
+            for (Branch branch : branches) {
+                List<Item> branchElements = branch.getItemsInOrder();
+                int costOfBranch = getCostOfBranchElements(branchElements);
                 if (maxCost < costOfBranch) {
                     maxCost = costOfBranch;
-                    branchWithMaxCost = branch;
+                    branchElementsWithMaxCost = branchElements;
                 }
             }
 
-            return new ItemsCostInfo(branchWithMaxCost, maxCost);
+            return new ItemsCostInfo(branchElementsWithMaxCost, maxCost);
         }
 
-        public List<Item> createCapableBranchFromLast(Item newItem, int capacity) {
+        public Branch createCapableBranchFromLast(Item newItem, int capacity) {
             int newWeight = newItem.getWeight();
-            List<Item> lastBranchCopy = new ArrayList<>(getLastBranch());
+            List<Item> lastBranchElementsCopy = new ArrayList<>(getLastBranch().getItemsInOrder());
             if (getWeightOfLastBranch() + newWeight <= capacity) {
-                lastBranchCopy.add(newItem);
-                return lastBranchCopy;
+                lastBranchElementsCopy.add(newItem);
+                return new Branch(lastBranchElementsCopy);
             }
 
-            while (!lastBranchCopy.isEmpty() && getWeightOfBranch(lastBranchCopy) + newWeight > capacity) {
-                lastBranchCopy.removeLast();
-                if (lastBranchCopy.isEmpty()) {
-                    return lastBranchCopy;
+            while (!lastBranchElementsCopy.isEmpty() && getWeightOfBranchElements(lastBranchElementsCopy) + newWeight > capacity) {
+                lastBranchElementsCopy.removeLast();
+                if (lastBranchElementsCopy.isEmpty()) {
+                    return new Branch(lastBranchElementsCopy);
                 }
             }
 
-            lastBranchCopy.add(newItem);
+            lastBranchElementsCopy.add(newItem);
 
-            return lastBranchCopy;
+            return new Branch(lastBranchElementsCopy);
         }
 
         public int getWeightOfLastBranch() {
-            return getWeightOfBranch(getLastBranch());
+            return getWeightOfBranchElements(getLastBranch().getItemsInOrder());
         }
 
         public void addInLastBranch(Item item) {
-            getLastBranch().add(item);
+            getLastBranch().addInBranch(item);
         }
 
-        public void addNewBranch(List<Item> items) {
-            branches.add(items);
+        public void addNewBranch(Branch branch) {
+            branches.add(branch);
         }
 
-        private int getWeightOfBranch(List<Item> branch) {
+        private int getWeightOfBranchElements(List<Item> branch) {
             return branch.stream().map(Item::getWeight).reduce(Integer::sum).orElse(0);
         }
 
-        private int getCostOfBranch(List<Item> branch) {
+        private int getCostOfBranchElements(List<Item> branch) {
             return branch.stream().map(Item::getCost).reduce(Integer::sum).orElse(0);
         }
 
@@ -188,6 +232,64 @@ public class BackpackImpl implements Backpack {
         @Override
         public int hashCode() {
             return Objects.hashCode(branches);
+        }
+    }
+
+    private static class Branch {
+
+        private final UUID uuid;
+
+        private final List<Item> itemsInOrder;
+
+        private final Set<Item> itemsCombination;
+
+        public Branch() {
+            this.uuid = UUID.randomUUID();
+            this.itemsInOrder = new ArrayList<>();
+            this.itemsCombination = new HashSet<>();
+        }
+
+        public Branch(List<Item> items) {
+            this.uuid = UUID.randomUUID();
+            this.itemsInOrder = items;
+            this.itemsCombination = new HashSet<>(items);
+        }
+
+        public UUID getUuid() {
+            return uuid;
+        }
+
+        public List<Item> getItemsInOrder() {
+            return itemsInOrder;
+        }
+
+        public Set<Item> getItemsCombination() {
+            return itemsCombination;
+        }
+
+        public boolean combinationContainsAll(Set<Item> otherItems) {
+            return itemsCombination.containsAll(otherItems);
+        }
+
+        public void addInBranch(Item item) {
+            this.itemsInOrder.add(item);
+            this.itemsCombination.add(item);
+        }
+
+        public boolean isEmpty() {
+            return this.itemsInOrder.isEmpty();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (o == null || getClass() != o.getClass()) return false;
+            Branch branch = (Branch) o;
+            return Objects.equals(uuid, branch.uuid);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hashCode(uuid);
         }
     }
 }
