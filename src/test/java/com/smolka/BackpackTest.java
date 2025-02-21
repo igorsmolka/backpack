@@ -10,6 +10,25 @@ import java.util.Set;
 public class BackpackTest {
 
     @Test
+    public void test10() {
+        Set<Item> items = Set.of(
+                new Item("1", 1, 1),
+                new Item("2", 1, 2),
+                new Item("3", 1, 3),
+                new Item("4", 2, 10)
+        );
+
+        int check = 13;
+
+        Backpack backpack = new BackpackImpl(3);
+
+        backpack.fillBackpack(items);
+
+        assert backpack.getCostOfContent() == check;
+        assert backpack.getWeightOfContent() <= backpack.getCapacity();
+    }
+
+    @Test
     public void test9() {
         Set<Item> items = Set.of(
                 new Item("1", 1, 1),
