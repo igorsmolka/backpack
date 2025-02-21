@@ -12,6 +12,8 @@ public class BackpackTest {
     @Test
     public void test8() {
         //todo incorrect for now
+        //todo запоминаем, что есть такие группы из повторяющихся весов... можем запоминать такие подгруппы, как отсортированный по цене массив
+        //todo дальше в addSelectionResultForIndex когда натыкаемся на такие группы - как-то это обрабатывать и сразу через них перепрыгивать... должно быть не сложно, надо просто обдумать
         Set<Item> items = Set.of(
                 new Item("1", 1, 1),
                 new Item("2", 1, 2),
@@ -19,9 +21,9 @@ public class BackpackTest {
                 new Item("4", 1, 4),
                 new Item("5", 1, 5),
                 new Item("6", 1, 6),
-                new Item("7", 1, 7),
                 new Item("8", 1, 8),
                 new Item("9", 1, 9),
+                new Item("21", 1, 21),
                 new Item("10", 1, 10),
                 new Item("11", 1, 11),
                 new Item("12", 1, 12),
@@ -30,10 +32,8 @@ public class BackpackTest {
                 new Item("15", 1, 15),
                 new Item("16", 1, 16),
                 new Item("17", 1, 17),
-                new Item("18", 1, 18),
                 new Item("19", 1, 19),
                 new Item("20", 1, 20),
-                new Item("21", 1, 21),
                 new Item("22", 1, 22),
                 new Item("23", 1, 23),
                 new Item("24", 1, 24),
@@ -49,12 +49,14 @@ public class BackpackTest {
                 new Item("34", 1, 34),
                 new Item("35", 1, 35),
                 new Item("36", 1, 36),
+                new Item("18", 1, 18),
                 new Item("37", 1, 37),
                 new Item("38", 1, 38),
                 new Item("39", 1, 39),
                 new Item("40", 1, 40),
                 new Item("41", 1, 41),
                 new Item("42", 1, 42),
+                new Item("7", 1, 7),
                 new Item("43", 1, 43),
                 new Item("44", 1, 44),
                 new Item("45", 1, 45),
