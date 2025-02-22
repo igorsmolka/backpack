@@ -11,6 +11,26 @@ import java.util.Set;
 public class BackpackTest {
 
     @Test
+    public void test12() {
+        //todo слишком торопишься уходить вперед при сбросе "балласта". подбирает 126, но 136 было бы выгодней, если бы ты не сбросил 3 как балласт
+        Set<Item> items = Set.of(
+                new Item("1", 1, 10),
+                new Item("2", 2, 2),
+                new Item("3", 3, 3),
+                new Item("4", 6, 6),
+                new Item("5", 9, 9)
+        );
+
+        int check = 19;
+
+        Backpack backpack = new BackpackImpl(9);
+        backpack.fillBackpack(items);
+
+        assert backpack.getCostOfContent() == check;
+        assert backpack.getWeightOfContent() <= backpack.getCapacity();
+    }
+
+    @Test
     public void test11() {
         Set<Item> items = new HashSet<>();
         for (int i = 1; i < 1000; i++) {
