@@ -11,6 +11,25 @@ import java.util.Set;
 public class BackpackTest {
 
     @Test
+    public void test13() {
+        Set<Item> items = Set.of(
+                new Item("1", 1, 10),
+                new Item("2", 2, 4),
+                new Item("3", 3, 5),
+                new Item("4", 4, 8),
+                new Item("5", 5, 10)
+        );
+
+        int check = 28;
+
+        Backpack backpack = new BackpackImpl(10);
+        backpack.fillBackpack(items);
+
+        assert backpack.getCostOfContent() == check;
+        assert backpack.getWeightOfContent() <= backpack.getCapacity();
+    }
+
+    @Test
     public void test12() {
         //todo слишком торопишься уходить вперед при сбросе "балласта". подбирает 126, но 136 было бы выгодней, если бы ты не сбросил 3 как балласт
         //todo точно ли с последней веткой надо сверять, игнорируя остальные? подумай еще раз. скорее всего тоже много чего теряешь, как и в этом случае
@@ -24,7 +43,7 @@ public class BackpackTest {
 
         int check = 19;
 
-        Backpack backpack = new BackpackImpl(9);
+        Backpack backpack = new BackpackImpl(10);
         backpack.fillBackpack(items);
 
         assert backpack.getCostOfContent() == check;
@@ -33,6 +52,7 @@ public class BackpackTest {
 
     @Test
     public void test11() {
+        //todo здесь повисает
         Set<Item> items = new HashSet<>();
         for (int i = 1; i < 1000; i++) {
             items.add(new Item(String.valueOf(i), i, i));
@@ -176,6 +196,7 @@ public class BackpackTest {
 
     @Test
     public void test2() {
+        //todo здесь переполняет рюкзак
         Set<Item> items = Set.of(
                 new Item("Консервы", 5, 3),
                 new Item("Гиря", 10, 5),

@@ -99,17 +99,9 @@ public class BackpackImpl implements Backpack {
         ItemSelectionResult result = new ItemSelectionResult(items.get(index));
         for (int i = index + 1; i < items.size(); i++) {
             Item nextItem = items.get(i);
-            int newWeight = result.getLastBranch().getWeight() + nextItem.getWeight();
-            if (newWeight > capacity) {
-                Branch newBranch = result.createCapableBranchFromLast(nextItem, capacity);
-                if (newBranch.isEmpty()) {
-                    otherResults.add(result);
-                    return;
-                }
-
-                result.addNewBranch(newBranch);
-            } else {
-                result.addInLastBranch(nextItem);
+            if (!result.put(nextItem, capacity)) {
+                otherResults.add(result);
+                return;
             }
         }
 
@@ -170,20 +162,22 @@ public class BackpackImpl implements Backpack {
 
     private static class ItemSelectionResult {
 
+        //todo если не нашлось ничего дельного в branchesMinElementExceptRoot - пытаемся уже резаться от этой ветки!
+        private final Branch rootBranch;
+
         private final List<Branch> branches;
+
+        private final Map<Integer, List<Branch>> branchesMinElementExceptRootMap;
 
         public ItemSelectionResult(Item rootItem) {
             this.branches = new ArrayList<>();
-            this.branches.add(new Branch());
-            this.getLastBranch().addInBranch(rootItem);
+            this.branchesMinElementExceptRootMap = new HashMap<>();
+            this.rootBranch = new Branch(rootItem);
+            this.branches.add(rootBranch);
         }
 
         public boolean isEmpty() {
             return branches.isEmpty();
-        }
-
-        public Branch getLastBranch() {
-            return branches.getLast();
         }
 
         public ItemsCostInfo getBranchWithMaxCost() {
@@ -191,45 +185,64 @@ public class BackpackImpl implements Backpack {
             List<Item> branchElementsWithMaxCost = new ArrayList<>();
 
             for (Branch branch : branches) {
-                int costOfBranch = branch.getCost();
+                int costOfBranch = branch.getBranchCost();
                 if (maxCost < costOfBranch) {
                     maxCost = costOfBranch;
-                    branchElementsWithMaxCost = branch.getItemsInOrder();
+                    branchElementsWithMaxCost = branch.getAllItems();
                 }
             }
 
             return new ItemsCostInfo(branchElementsWithMaxCost, maxCost);
         }
 
-        public Branch createCapableBranchFromLast(Item newItem, int capacity) {
-            int newWeight = newItem.getWeight();
-            int weightOfLastElement = getLastBranch().getWeight();
+        public boolean put(Item newItem, int capacity) {
+            Integer newItemWeight = newItem.getWeight();
 
-            Branch lastBranchCopy = getLastBranch().getCopy();
-            if (weightOfLastElement + newWeight <= capacity) {
-                lastBranchCopy.addInBranch(newItem);
-                return lastBranchCopy;
-            }
+            List<Branch> newBranches = new ArrayList<>();
+            boolean successfulAdded = false;
+            for (Map.Entry<Integer, List<Branch>> branchesMinElementExceptRootMapEntry : branchesMinElementExceptRootMap.entrySet()) {
+                Integer minWeight = branchesMinElementExceptRootMapEntry.getKey();
+                List<Branch> branchesWithMin = branchesMinElementExceptRootMapEntry.getValue();
 
-            while (!lastBranchCopy.isEmpty() && weightOfLastElement + newWeight > capacity) {
-                lastBranchCopy.removeLast();
-                if (lastBranchCopy.isEmpty()) {
-                    return lastBranchCopy;
+                if (minWeight + newItemWeight < capacity) {
+                    for (Branch branch : branchesWithMin) {
+                        if (!branch.putInBranchAfterRoot(newItem, capacity)) {
+                            Branch mostProfitableCompletion = branch.createMostProfitableCompletionWithItemsAfterRootAndNewItem(newItem, capacity);
+                            if (mostProfitableCompletion == null) {
+                                continue;
+                            }
+
+                            successfulAdded = true;
+                            newBranches.add(mostProfitableCompletion);
+                        } else {
+                            successfulAdded = true;
+                        }
+                    }
                 }
-                weightOfLastElement = lastBranchCopy.getWeight();
             }
 
-            lastBranchCopy.addInBranch(newItem);
+            if (!newBranches.isEmpty()) {
+                branches.addAll(newBranches);
+                for (Branch branch : newBranches) {
+                    branchesMinElementExceptRootMap.putIfAbsent(branch.getMinWeightAfterRoot(), new ArrayList<>());
+                    branchesMinElementExceptRootMap.get(branch.getMinWeightAfterRoot()).add(branch);
+                }
+            }
 
-            return lastBranchCopy;
-        }
+            if (successfulAdded) {
+                return true;
+            }
 
-        public void addInLastBranch(Item item) {
-            getLastBranch().addInBranch(item);
-        }
+            Branch newBranchFromRoot = new Branch(rootBranch);
+            if (!newBranchFromRoot.putInBranchAfterRoot(newItem, capacity)) {
+                return false;
+            }
 
-        public void addNewBranch(Branch branch) {
-            branches.add(branch);
+            branches.add(newBranchFromRoot);
+            branchesMinElementExceptRootMap.putIfAbsent(newBranchFromRoot.getMinWeightAfterRoot(), new ArrayList<>());
+            branchesMinElementExceptRootMap.get(newBranchFromRoot.getMinWeightAfterRoot()).add(newBranchFromRoot);
+
+            return true;
         }
 
         @Override
@@ -247,69 +260,163 @@ public class BackpackImpl implements Backpack {
 
     private static class Branch {
 
-        private final List<Item> itemsInOrder;
+        private final Item rootItem;
 
-        private Integer cost;
+        private final List<Item> itemsAfterRoot;
 
-        private Integer weight;
+        private int branchWeight;
 
-        public Branch() {
-            this.itemsInOrder = new ArrayList<>();
-            this.cost = 0;
-            this.weight = 0;
+        private int branchCost;
+
+        private Integer minWeightAfterRoot;
+
+        public Branch(Item rootItem) {
+            this.rootItem = rootItem;
+            this.itemsAfterRoot = new ArrayList<>();
+            this.branchWeight = rootItem.getWeight();
+            this.branchCost = rootItem.getCost();
+            this.minWeightAfterRoot = null;
         }
 
-        public Branch(List<Item> items) {
-            this.itemsInOrder = items;
-            this.cost = items.stream().map(Item::getCost).reduce(Integer::sum).orElse(0);
-            this.weight = items.stream().map(Item::getWeight).reduce(Integer::sum).orElse(0);
+        public Branch(Branch other) {
+            this.rootItem = other.rootItem;
+            this.itemsAfterRoot = new ArrayList<>(other.itemsAfterRoot);
+            this.branchWeight = other.getBranchWeight();
+            this.branchCost = other.getBranchCost();
+            this.minWeightAfterRoot = other.getMinWeightAfterRoot();
         }
 
-        public Branch getCopy() {
-            return new Branch(new ArrayList<>(itemsInOrder));
+        private Branch(Item rootItem, List<Item> itemsAfterRoot) {
+            this.rootItem = rootItem;
+            this.itemsAfterRoot = itemsAfterRoot;
+            this.branchCost = rootItem.getCost() + itemsAfterRoot.stream().map(Item::getCost).reduce(Integer::sum).orElse(0);
+            this.branchWeight = rootItem.getWeight() + itemsAfterRoot.stream().map(Item::getWeight).reduce(Integer::sum).orElse(0);
+            this.minWeightAfterRoot = itemsAfterRoot.stream().map(Item::getWeight).min(Integer::compareTo).orElse(null);
         }
 
-        public Integer getWeight() {
-            return weight;
+        public Integer getBranchCost() {
+            return branchCost;
         }
 
-        public Integer getCost() {
-            return cost;
+        public Integer getBranchWeight() {
+            return branchWeight;
         }
 
-        public List<Item> getItemsInOrder() {
-            return itemsInOrder;
+        public List<Item> getAllItems() {
+            List<Item> result = new ArrayList<>();
+            result.add(rootItem);
+            result.addAll(itemsAfterRoot);
+
+            return result;
         }
 
-        public void removeLast() {
-            int weightOfLastElement = itemsInOrder.getLast().getWeight();
-            int costOfLastElement = itemsInOrder.getLast().getCost();
-
-            this.itemsInOrder.removeLast();
-            this.weight -= weightOfLastElement;
-            this.cost -= costOfLastElement;
+        public Integer getMinWeightAfterRoot() {
+            return minWeightAfterRoot;
         }
 
-        public void addInBranch(Item item) {
-            this.itemsInOrder.add(item);
-            this.cost += item.getCost();
-            this.weight += item.getWeight();
+        public Branch createMostProfitableCompletionWithItemsAfterRootAndNewItem(Item item, int capacity) {
+            if (itemsAfterRoot.isEmpty()) {
+                //todo для резанья от рутовой ветки этот метод предназначен не будет!
+                return null;
+            }
+
+            if (branchWeight + item.getWeight() <= capacity) {
+                this.putInBranchAfterRoot(item, capacity);
+                return this;
+            }
+
+            if (minWeightAfterRoot + item.getWeight() >= capacity) {
+                //todo мы априори такое не укопмлектуем с afterRoot, а если нам нужен только root - это вообще отдельный кейс пусть будет пока
+                return null;
+            }
+
+            int needed = capacity - item.getWeight();
+
+            int rootWeight = rootItem.getWeight();
+
+            List<List<Item>> possibleCompletionsWithLoss = new ArrayList<>();
+
+            int minLoss = Integer.MAX_VALUE;
+            int minLossIndex = -1;
+
+            // todo пока в тупую
+            for (int i = 0; i < itemsAfterRoot.size(); i++) {
+                List<Item> currentCompletion = new ArrayList<>();
+                Item currentItem = itemsAfterRoot.get(i);
+                currentCompletion.add(currentItem);
+                int currLoad = rootWeight;
+                currLoad += currentItem.getWeight();
+                int currCost = currentItem.getCost();
+
+                if (currLoad >= needed) {
+                    possibleCompletionsWithLoss.add(new ArrayList<>(currentCompletion));
+
+                    if (currCost < minLoss) {
+                        minLoss = currCost;
+                        minLossIndex = possibleCompletionsWithLoss.size() - 1;
+                    }
+                }
+
+                for (int j = i + 1; j < itemsAfterRoot.size(); j++) {
+                    Item otherItem = itemsAfterRoot.get(j);
+                    currentCompletion.add(otherItem);
+                    currLoad += otherItem.getWeight();
+                    currCost += otherItem.getCost();
+
+                    if (currLoad >= needed) {
+                        possibleCompletionsWithLoss.add(new ArrayList<>(currentCompletion));
+
+                        if (currCost < minLoss) {
+                            minLoss = currCost;
+                            minLossIndex = possibleCompletionsWithLoss.size() - 1;
+                        }
+                    }
+                }
+            }
+
+            if (minLossIndex == -1) {
+                return null;
+            }
+
+            List<Item> mostProfitableItemsAfterRoot = possibleCompletionsWithLoss.get(minLossIndex);
+            mostProfitableItemsAfterRoot.add(item);
+
+            return new Branch(rootItem, mostProfitableItemsAfterRoot);
         }
 
-        public boolean isEmpty() {
-            return this.itemsInOrder.isEmpty();
+        public boolean putInBranchAfterRoot(Item item, int capacity) {
+            assert !Objects.equals(item, rootItem);
+
+            if (branchWeight + item.getWeight() > capacity) {
+                return false;
+            }
+
+            itemsAfterRoot.add(item);
+
+            branchWeight += item.getWeight();
+            branchCost += item.getCost();
+            if (minWeightAfterRoot == null) {
+                minWeightAfterRoot = item.getWeight();
+                return true;
+            }
+
+            if (item.getWeight() < minWeightAfterRoot) {
+                minWeightAfterRoot = item.getWeight();
+            }
+
+            return true;
         }
 
         @Override
         public boolean equals(Object o) {
             if (o == null || getClass() != o.getClass()) return false;
             Branch branch = (Branch) o;
-            return Objects.equals(itemsInOrder, branch.itemsInOrder) && Objects.equals(cost, branch.cost) && Objects.equals(weight, branch.weight);
+            return Objects.equals(itemsAfterRoot, branch.itemsAfterRoot) && Objects.equals(branchWeight, branch.branchWeight) && Objects.equals(branchCost, branch.branchCost);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(itemsInOrder, cost, weight);
+            return Objects.hash(itemsAfterRoot, branchWeight, branchCost);
         }
     }
 }
