@@ -316,7 +316,8 @@ public class BackpackImpl implements Backpack {
 
         public Branch createMostProfitableCompletionWithItemsAfterRootAndNewItem(Item item, int capacity) {
             //todo логика сильно тормозит на большом тесте!
-            //todo возможно, из за того, что мы все-таки заходим сюда и не можем распределять. видимо, проверка с minWeight не работает так, как предполагалось
+            //todo возможно, в т.ч. из за того, что мы все-таки заходим сюда, когда не можем распределять. видимо, проверка с minWeight не работает так, как предполагалось
+            //todo эта логика в любом случае подразумевается дорогой, чем меньше ее трогаем - тем лучше
             if (itemsAfterRoot.isEmpty()) {
                 //todo для резанья от рутовой ветки этот метод предназначен не будет!
                 return null;
