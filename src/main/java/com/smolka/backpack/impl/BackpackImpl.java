@@ -34,30 +34,24 @@ public class BackpackImpl implements Backpack {
     public void fillBackpack(Set<Item> items) {
         itemsInBackpack.clear();
 
-
         List<Item> preProcessedItems = preProcessItems(items);
 
-        List<ItemSelectionResult> selectionResults = new ArrayList<>();
-        for (int i = 0; i < preProcessedItems.size(); i++) {
-            addSelectionResultForIndex(i, preProcessedItems, selectionResults);
-        }
-
-        int maxCost = -1;
-        List<Item> branchWithMaxCost = new ArrayList<>();
-        for (ItemSelectionResult selectionResult : selectionResults) {
-            if (selectionResult.isEmpty()) {
-                continue;
-            }
-
-            ItemsCostInfo itemsCostInfo = selectionResult.getBranchWithMaxCost();
-            int currentCost = itemsCostInfo.cost();
-            if (currentCost > maxCost) {
-                maxCost = currentCost;
-                branchWithMaxCost = itemsCostInfo.items();
-            }
-        }
-
-        itemsInBackpack.addAll(branchWithMaxCost);
+        //todo надо попробовать принципиально поменять подход
+        /*
+        123456789
+        для единицы
+        1234
+        15
+        16
+        17
+        18
+        19
+        при W = 10
+        как-то соотносить между собой, получать наиболее профитное, до тех пор пока не выйдем на супер-профит.
+        по сути наверное некоторое возвращение к начальному плану, только теперь с учетом того, что нельзя забывать про предыдущие значения!!!
+        потиху и без фанатизма копать в эту сторону. уже есть неплохой метод в бранче - createMostProfitableCompletionWithItemsAfterRootAndNewItem. тут будет что-то подобное, но выше уровнем, с ветками, а не по одному.
+        пока отдыхать и тихонько думать.
+        * **/
     }
 
     @Override
@@ -99,19 +93,6 @@ public class BackpackImpl implements Backpack {
         return preProcessedItemsList;
     }
 
-    private void addSelectionResultForIndex(int index, List<Item> items, List<ItemSelectionResult> otherResults) {
-        ItemSelectionResult result = new ItemSelectionResult(items.get(index));
-        for (int i = index + 1; i < items.size(); i++) {
-            Item nextItem = items.get(i);
-            if (!result.put(nextItem, capacity)) {
-                otherResults.add(result);
-                return;
-            }
-        }
-
-        otherResults.add(result);
-    }
-
     private static class WeightSequenceInfo {
 
         private final int weight;
@@ -143,128 +124,6 @@ public class BackpackImpl implements Backpack {
             }
 
             return itemsSortedByCost.subList(itemsSortedByCost.size() - limit, itemsSortedByCost.size());
-        }
-    }
-
-    private record ItemsCostInfo(
-            List<Item> items,
-            int cost
-    ) {
-
-        @Override
-        public boolean equals(Object o) {
-            if (o == null || getClass() != o.getClass()) return false;
-            ItemsCostInfo that = (ItemsCostInfo) o;
-            return cost == that.cost && Objects.equals(items, that.items);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(items, cost);
-        }
-    }
-
-    private static class ItemSelectionResult {
-
-        //todo если не нашлось ничего дельного в branchesMinElementExceptRoot - пытаемся уже резаться от этой ветки!
-        private final Branch rootBranch;
-
-        private final List<Branch> branches;
-
-        private final Map<Integer, List<Branch>> branchesMinElementExceptRootMap;
-
-        public ItemSelectionResult(Item rootItem) {
-            this.branches = new ArrayList<>();
-            this.branchesMinElementExceptRootMap = new HashMap<>();
-            this.rootBranch = new Branch(rootItem);
-            this.branches.add(rootBranch);
-        }
-
-        public boolean isEmpty() {
-            return branches.isEmpty();
-        }
-
-        public ItemsCostInfo getBranchWithMaxCost() {
-            int maxCost = -1;
-            List<Item> branchElementsWithMaxCost = new ArrayList<>();
-
-            for (Branch branch : branches) {
-                int costOfBranch = branch.getBranchCost();
-                if (maxCost < costOfBranch) {
-                    maxCost = costOfBranch;
-                    branchElementsWithMaxCost = branch.getAllItems();
-                }
-            }
-
-            return new ItemsCostInfo(branchElementsWithMaxCost, maxCost);
-        }
-
-        public boolean put(Item newItem, int capacity) {
-            //todo на большом тесте: в какой-то момент появляется 6.670.283 ветки, 7 миллионов заходов на формирование совместимой ветки, это ужас если вкратце. пока думаем над уровнем выше.
-            //todo при этом на некоторых других кейсах мы в итоге не подбираем совместимую ветку, хотя туда зашли. тоже подумать.
-            //todo план-капкан:
-            //todo подумать, можно ли оптимизировать работу алгоритма на уровне ItemSelectionResult и без 7 миллионов заходов в формирование совместимостей - первое на очереди
-            //todo подумать, как не попадать в заведомо несовместимые ветки, проверки с min мало - будет видно на других кейсах
-            //todo мы идем последовательно вперед и должны учитывать только те ветки, в которые был успешно добавлен предыдущий элемент - тоже, возможно, как часть оптимизиации
-            Integer newItemWeight = newItem.getWeight();
-
-            List<Branch> newBranches = new ArrayList<>();
-            boolean successfulAdded = false;
-            for (Map.Entry<Integer, List<Branch>> branchesMinElementExceptRootMapEntry : branchesMinElementExceptRootMap.entrySet()) {
-                Integer minWeight = branchesMinElementExceptRootMapEntry.getKey();
-                List<Branch> branchesWithMin = branchesMinElementExceptRootMapEntry.getValue();
-
-                if (minWeight + newItemWeight < capacity) {
-                    for (Branch branch : branchesWithMin) {
-                        if (!branch.putInBranchAfterRoot(newItem, capacity)) {
-                            Branch mostProfitableCompletion = branch.createMostProfitableCompletionWithItemsAfterRootAndNewItem(newItem, capacity);
-                            if (mostProfitableCompletion == null) {
-                                continue;
-                            }
-
-                            successfulAdded = true;
-                            newBranches.add(mostProfitableCompletion);
-                        } else {
-                            successfulAdded = true;
-                        }
-                    }
-                }
-            }
-
-            if (!newBranches.isEmpty()) {
-                branches.addAll(newBranches);
-                for (Branch branch : newBranches) {
-                    branchesMinElementExceptRootMap.putIfAbsent(branch.getMinWeightAfterRoot(), new ArrayList<>());
-                    branchesMinElementExceptRootMap.get(branch.getMinWeightAfterRoot()).add(branch);
-                }
-            }
-
-            if (successfulAdded) {
-                return true;
-            }
-
-            Branch newBranchFromRoot = new Branch(rootBranch);
-            if (!newBranchFromRoot.putInBranchAfterRoot(newItem, capacity)) {
-                return false;
-            }
-
-            branches.add(newBranchFromRoot);
-            branchesMinElementExceptRootMap.putIfAbsent(newBranchFromRoot.getMinWeightAfterRoot(), new ArrayList<>());
-            branchesMinElementExceptRootMap.get(newBranchFromRoot.getMinWeightAfterRoot()).add(newBranchFromRoot);
-
-            return true;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (o == null || getClass() != o.getClass()) return false;
-            ItemSelectionResult that = (ItemSelectionResult) o;
-            return Objects.equals(branches, that.branches);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hashCode(branches);
         }
     }
 
@@ -409,58 +268,6 @@ public class BackpackImpl implements Backpack {
             mostProfitableItemsAfterRoot.add(item);
 
             return new Branch(rootItem, mostProfitableItemsAfterRoot);
-//            int needed = capacity - item.getWeight();
-//
-//            int rootWeight = rootItem.getWeight();
-//
-//            List<List<Item>> possibleCompletionsWithLoss = new ArrayList<>();
-//
-//            int minLoss = Integer.MAX_VALUE;
-//            int minLossIndex = -1;
-//
-//            // todo пока в тупую
-//            for (int i = 0; i < itemsAfterRoot.size(); i++) {
-//                List<Item> currentCompletion = new ArrayList<>();
-//                Item currentItem = itemsAfterRoot.get(i);
-//                currentCompletion.add(currentItem);
-//                int currLoad = rootWeight;
-//                currLoad += currentItem.getWeight();
-//                int currCost = currentItem.getCost();
-//
-//                if (currLoad >= needed) {
-//                    possibleCompletionsWithLoss.add(new ArrayList<>(currentCompletion));
-//
-//                    if (currCost < minLoss) {
-//                        minLoss = currCost;
-//                        minLossIndex = possibleCompletionsWithLoss.size() - 1;
-//                    }
-//                }
-//
-//                for (int j = i + 1; j < itemsAfterRoot.size(); j++) {
-//                    Item otherItem = itemsAfterRoot.get(j);
-//                    currentCompletion.add(otherItem);
-//                    currLoad += otherItem.getWeight();
-//                    currCost += otherItem.getCost();
-//
-//                    if (currLoad >= needed) {
-//                        possibleCompletionsWithLoss.add(new ArrayList<>(currentCompletion));
-//
-//                        if (currCost < minLoss) {
-//                            minLoss = currCost;
-//                            minLossIndex = possibleCompletionsWithLoss.size() - 1;
-//                        }
-//                    }
-//                }
-//            }
-//
-//            if (minLossIndex == -1) {
-//                return null;
-//            }
-//
-//            List<Item> mostProfitableItemsAfterRoot = possibleCompletionsWithLoss.get(minLossIndex);
-//            mostProfitableItemsAfterRoot.add(item);
-//
-//            return new Branch(rootItem, mostProfitableItemsAfterRoot);
         }
 
         public boolean putInBranchAfterRoot(Item item, int capacity) {
