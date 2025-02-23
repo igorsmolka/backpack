@@ -15,6 +15,10 @@ import java.util.stream.Collectors;
 
 public class BackpackImpl implements Backpack {
 
+    private static int COUNT = 0;
+
+    private static int COUNT_FAIL = 0;
+
     private final Set<Item> itemsInBackpack;
 
     private final int capacity;
@@ -196,6 +200,7 @@ public class BackpackImpl implements Backpack {
         }
 
         public boolean put(Item newItem, int capacity) {
+            //todo на большом тесте: в какой-то момент появляется 6.670.283 ветки, 7 миллионов заходов на формирование совместимой ветки, это ужас если вкратце. пока думаем над уровнем выше.
             Integer newItemWeight = newItem.getWeight();
 
             List<Branch> newBranches = new ArrayList<>();
@@ -333,6 +338,8 @@ public class BackpackImpl implements Backpack {
                 return null;
             }
 
+            COUNT++;
+
             int freeSpaceNeeded = item.getWeight() - (capacity - branchWeight);
 
             int minLoss = Integer.MAX_VALUE;
@@ -389,6 +396,7 @@ public class BackpackImpl implements Backpack {
             }
 
             if (minLossIndex == -1) {
+                COUNT_FAIL++;
                 return null;
             }
 
