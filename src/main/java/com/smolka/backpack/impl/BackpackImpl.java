@@ -201,6 +201,7 @@ public class BackpackImpl implements Backpack {
 
         public boolean put(Item newItem, int capacity) {
             //todo на большом тесте: в какой-то момент появляется 6.670.283 ветки, 7 миллионов заходов на формирование совместимой ветки, это ужас если вкратце. пока думаем над уровнем выше.
+            //todo при этом на некоторых других кейсах мы в итоге не подбираем совместимую ветку, хотя туда зашли. тоже подумать.
             Integer newItemWeight = newItem.getWeight();
 
             List<Branch> newBranches = new ArrayList<>();
