@@ -35,6 +35,13 @@ public class BackpackImpl implements Backpack {
         itemsInBackpack.clear();
 
         List<Item> preProcessedItems = preProcessItems(items);
+        List<ItemAnalyzeResult> itemAnalyzeResults = new ArrayList<>();
+
+        for (int i = 0; i < preProcessedItems.size(); i++) {
+            itemAnalyzeResults.add(getItemAnalyzeResult(i, preProcessedItems));
+        }
+
+        itemAnalyzeResults = itemAnalyzeResults;
 
         //todo надо попробовать принципиально поменять подход
         /*
@@ -72,6 +79,30 @@ public class BackpackImpl implements Backpack {
     @Override
     public int getCapacity() {
         return capacity;
+    }
+
+    private ItemAnalyzeResult getItemAnalyzeResult(int index, List<Item> preProcessedItems) {
+        assert index < preProcessedItems.size();
+
+        Item rootItem = preProcessedItems.get(index);
+        ItemAnalyzeResult result = new ItemAnalyzeResult(rootItem);
+        Branch branch = new Branch(rootItem);
+        result.addNewBranch(new Branch(branch));
+
+        for (int i = index + 1; i < preProcessedItems.size(); i++) {
+            Item otherItem = preProcessedItems.get(i);
+            boolean putResult = branch.putInBranchAfterRoot(otherItem, capacity);
+            if (!putResult || i == preProcessedItems.size() - 1) {
+                result.addNewBranch(new Branch(branch));
+
+                if (!putResult) {
+                    branch = new Branch(rootItem);
+                    i--;
+                }
+            }
+        }
+
+        return result;
     }
 
     private List<Item> preProcessItems(Set<Item> items) {
@@ -127,6 +158,27 @@ public class BackpackImpl implements Backpack {
         }
     }
 
+    private static class ItemAnalyzeResult {
+
+        private final Item rootItem;
+
+        private final List<Branch> branches;
+
+        public ItemAnalyzeResult(Item rootItem) {
+            this.rootItem = rootItem;
+            this.branches = new ArrayList<>();
+        }
+
+        public void addNewBranch(Branch branch) {
+            assert Objects.equals(branch.getRootItem(), rootItem);
+            branches.add(branch);
+        }
+
+        public Branch getMostProfitableBranch(int capacity) {
+            return null;
+        }
+    }
+
     private static class Branch {
 
         private final Item rootItem;
@@ -161,6 +213,10 @@ public class BackpackImpl implements Backpack {
             this.branchCost = rootItem.getCost() + itemsAfterRoot.stream().map(Item::getCost).reduce(Integer::sum).orElse(0);
             this.branchWeight = rootItem.getWeight() + itemsAfterRoot.stream().map(Item::getWeight).reduce(Integer::sum).orElse(0);
             this.minWeightAfterRoot = itemsAfterRoot.stream().map(Item::getWeight).min(Integer::compareTo).orElse(null);
+        }
+
+        public Item getRootItem() {
+            return rootItem;
         }
 
         public Integer getBranchCost() {

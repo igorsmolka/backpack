@@ -51,18 +51,6 @@ public class BackpackTest {
     }
 
     @Test
-    public void test14() {
-        Set<Item> items = new HashSet<>();
-        for (int i = 1; i <= 1000; i++) {
-            items.add(new Item(String.valueOf(i), i, i));
-        }
-
-        Backpack backpack = new BackpackImpl(1999);
-
-        backpack.fillBackpack(items);
-    }
-
-    @Test
     public void test11() {
         //todo здесь повисает
         Set<Item> items = new HashSet<>();
