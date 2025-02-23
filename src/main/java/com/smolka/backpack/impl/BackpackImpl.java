@@ -315,6 +315,8 @@ public class BackpackImpl implements Backpack {
         }
 
         public Branch createMostProfitableCompletionWithItemsAfterRootAndNewItem(Item item, int capacity) {
+            //todo логика сильно тормозит на большом тесте!
+            //todo что если не проходить через iJ, а танцевать от одного наиболее выгодного элемента??
             if (itemsAfterRoot.isEmpty()) {
                 //todo для резанья от рутовой ветки этот метод предназначен не будет!
                 return null;
@@ -330,31 +332,36 @@ public class BackpackImpl implements Backpack {
                 return null;
             }
 
-            int needed = capacity - item.getWeight();
+            int freeSpaceNeeded = item.getWeight() - (capacity - branchWeight);
+
+            int minLoss = Integer.MAX_VALUE;
+            int minLossIndex = -1;
 
             int rootWeight = rootItem.getWeight();
 
             List<List<Item>> possibleCompletionsWithLoss = new ArrayList<>();
 
-            int minLoss = Integer.MAX_VALUE;
-            int minLossIndex = -1;
-
-            // todo пока в тупую
             for (int i = 0; i < itemsAfterRoot.size(); i++) {
                 List<Item> currentCompletion = new ArrayList<>();
                 Item currentItem = itemsAfterRoot.get(i);
                 currentCompletion.add(currentItem);
                 int currLoad = rootWeight;
                 currLoad += currentItem.getWeight();
+
                 int currCost = currentItem.getCost();
 
-                if (currLoad >= needed) {
-                    possibleCompletionsWithLoss.add(new ArrayList<>(currentCompletion));
+                if (currLoad + item.getWeight() > capacity) {
+                    continue;
+                }
 
+                if (currLoad >= freeSpaceNeeded) {
+                    possibleCompletionsWithLoss.add(new ArrayList<>(currentCompletion));
                     if (currCost < minLoss) {
                         minLoss = currCost;
                         minLossIndex = possibleCompletionsWithLoss.size() - 1;
                     }
+
+                    continue;
                 }
 
                 for (int j = i + 1; j < itemsAfterRoot.size(); j++) {
@@ -363,13 +370,19 @@ public class BackpackImpl implements Backpack {
                     currLoad += otherItem.getWeight();
                     currCost += otherItem.getCost();
 
-                    if (currLoad >= needed) {
-                        possibleCompletionsWithLoss.add(new ArrayList<>(currentCompletion));
+                    if (currLoad + item.getWeight() > capacity) {
+                        break;
+                    }
 
+                    if (currLoad >= freeSpaceNeeded) {
+                        possibleCompletionsWithLoss.add(new ArrayList<>(currentCompletion));
                         if (currCost < minLoss) {
                             minLoss = currCost;
                             minLossIndex = possibleCompletionsWithLoss.size() - 1;
                         }
+                        currentCompletion.removeLast();
+                        currLoad -= otherItem.getWeight();
+                        currCost -= otherItem.getCost();
                     }
                 }
             }
@@ -382,6 +395,58 @@ public class BackpackImpl implements Backpack {
             mostProfitableItemsAfterRoot.add(item);
 
             return new Branch(rootItem, mostProfitableItemsAfterRoot);
+//            int needed = capacity - item.getWeight();
+//
+//            int rootWeight = rootItem.getWeight();
+//
+//            List<List<Item>> possibleCompletionsWithLoss = new ArrayList<>();
+//
+//            int minLoss = Integer.MAX_VALUE;
+//            int minLossIndex = -1;
+//
+//            // todo пока в тупую
+//            for (int i = 0; i < itemsAfterRoot.size(); i++) {
+//                List<Item> currentCompletion = new ArrayList<>();
+//                Item currentItem = itemsAfterRoot.get(i);
+//                currentCompletion.add(currentItem);
+//                int currLoad = rootWeight;
+//                currLoad += currentItem.getWeight();
+//                int currCost = currentItem.getCost();
+//
+//                if (currLoad >= needed) {
+//                    possibleCompletionsWithLoss.add(new ArrayList<>(currentCompletion));
+//
+//                    if (currCost < minLoss) {
+//                        minLoss = currCost;
+//                        minLossIndex = possibleCompletionsWithLoss.size() - 1;
+//                    }
+//                }
+//
+//                for (int j = i + 1; j < itemsAfterRoot.size(); j++) {
+//                    Item otherItem = itemsAfterRoot.get(j);
+//                    currentCompletion.add(otherItem);
+//                    currLoad += otherItem.getWeight();
+//                    currCost += otherItem.getCost();
+//
+//                    if (currLoad >= needed) {
+//                        possibleCompletionsWithLoss.add(new ArrayList<>(currentCompletion));
+//
+//                        if (currCost < minLoss) {
+//                            minLoss = currCost;
+//                            minLossIndex = possibleCompletionsWithLoss.size() - 1;
+//                        }
+//                    }
+//                }
+//            }
+//
+//            if (minLossIndex == -1) {
+//                return null;
+//            }
+//
+//            List<Item> mostProfitableItemsAfterRoot = possibleCompletionsWithLoss.get(minLossIndex);
+//            mostProfitableItemsAfterRoot.add(item);
+//
+//            return new Branch(rootItem, mostProfitableItemsAfterRoot);
         }
 
         public boolean putInBranchAfterRoot(Item item, int capacity) {
