@@ -15,13 +15,13 @@ public class Variant {
 
     private int variantCost;
 
-    private Integer minMutableElement;
+    private Integer minMutableElementWeight;
 
     public Variant(Item immutableElement) {
         this.immutablePart = new ArrayList<>();
         this.immutablePart.add(immutableElement);
         this.mutablePart = new ArrayList<>();
-        this.minMutableElement = null;
+        this.minMutableElementWeight = null;
         this.variantWeight = immutableElement.getWeight();
         this.variantCost = immutableElement.getCost();
 
@@ -30,7 +30,7 @@ public class Variant {
     public Variant(List<Item> immutablePart) {
         this.immutablePart = new ArrayList<>(immutablePart);
         this.mutablePart = new ArrayList<>();
-        this.minMutableElement = null;
+        this.minMutableElementWeight = null;
         this.variantWeight = immutablePart.stream().map(Item::getWeight).reduce(Integer::sum).orElse(0);
         this.variantCost = immutablePart.stream().map(Item::getCost).reduce(Integer::sum).orElse(0);
     }
@@ -51,8 +51,8 @@ public class Variant {
         return variantCost;
     }
 
-    public Integer getMinMutableElement() {
-        return minMutableElement;
+    public Integer getMinMutableElementWeight() {
+        return minMutableElementWeight;
     }
 
     public boolean putMutableElement(Item item, int capacity) {
@@ -64,13 +64,13 @@ public class Variant {
 
         variantWeight += item.getWeight();
         variantCost += item.getCost();
-        if (minMutableElement == null) {
-            minMutableElement = item.getWeight();
+        if (minMutableElementWeight == null) {
+            minMutableElementWeight = item.getWeight();
             return true;
         }
 
-        if (item.getWeight() < minMutableElement) {
-            minMutableElement = item.getWeight();
+        if (item.getWeight() < minMutableElementWeight) {
+            minMutableElementWeight = item.getWeight();
         }
 
         return true;
