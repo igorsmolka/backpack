@@ -11,6 +11,10 @@ public class Variant {
 
     private final List<Item> mutablePart;
 
+    private int immutablePartWeight;
+
+    private int immutablePartCost;
+
     private int variantWeight;
 
     private int variantCost;
@@ -22,6 +26,8 @@ public class Variant {
         this.immutablePart.add(immutableElement);
         this.mutablePart = new ArrayList<>();
         this.minMutableElementWeight = null;
+        this.immutablePartWeight = immutableElement.getWeight();
+        this.immutablePartCost = immutableElement.getCost();
         this.variantWeight = immutableElement.getWeight();
         this.variantCost = immutableElement.getCost();
 
@@ -31,8 +37,10 @@ public class Variant {
         this.immutablePart = new ArrayList<>(immutablePart);
         this.mutablePart = new ArrayList<>();
         this.minMutableElementWeight = null;
-        this.variantWeight = immutablePart.stream().map(Item::getWeight).reduce(Integer::sum).orElse(0);
-        this.variantCost = immutablePart.stream().map(Item::getCost).reduce(Integer::sum).orElse(0);
+        this.immutablePartWeight = immutablePart.stream().map(Item::getWeight).reduce(Integer::sum).orElse(0);
+        this.immutablePartCost = immutablePart.stream().map(Item::getCost).reduce(Integer::sum).orElse(0);
+        this.variantWeight = immutablePartWeight;
+        this.variantCost = immutablePartCost;
     }
 
     public List<Item> getImmutablePart() {
@@ -41,6 +49,22 @@ public class Variant {
 
     public List<Item> getMutablePart() {
         return mutablePart;
+    }
+
+    public int sizeOfMutablePart() {
+        return mutablePart.size();
+    }
+
+    public int getImmutablePartWeight() {
+        return immutablePartWeight;
+    }
+
+    public int getMutablePartWeight() {
+        return getVariantWeight() - immutablePartWeight;
+    }
+
+    public int getMutablePartCost() {
+        return getVariantCost() - immutablePartCost;
     }
 
     public int getVariantWeight() {
