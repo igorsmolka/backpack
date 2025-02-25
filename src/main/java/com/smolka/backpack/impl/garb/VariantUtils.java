@@ -1,4 +1,4 @@
-package com.smolka.backpack.impl;
+package com.smolka.backpack.impl.garb;
 
 public class VariantUtils {
 
